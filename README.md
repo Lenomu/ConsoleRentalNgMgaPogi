@@ -1,2 +1,1 @@
-# ConsoleRentalNgMgaPogi
-maangas kami eh bakit ba
+# GO TO CODESPACES PLZ PLZ
