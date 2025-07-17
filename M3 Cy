@@ -7,27 +7,28 @@ public:
     string name;                    // Customer name
     string contactNumber;           // Contact number
     int age;                        // Age
-    list<string> rentalHistory;     // Rental history entries (e.g., "PS5 - 2 hours")
+    list<string> rentalHistory;     // Rental history (e.g., "PS5 - 2 hours")
 
-    // Add a rental record to history
+    // Add a rental entry to history
     void addRental(string consoleName, int hours) {
         string record = consoleName + " - " + to_string(hours) + " hour(s)";
         rentalHistory.push_back(record);
     }
 
-    // Display customer's latest info
+    // Display basic info + latest rental
     void displayDetails() const {
         cout << "Name: " << name << "\n";
         cout << "Age: " << age << "\n";
         cout << "Contact: " << contactNumber << "\n";
         cout << "ID: " << id << "\n";
+
         if (!rentalHistory.empty()) {
             cout << "Last Rental: " << rentalHistory.back() << "\n";
         }
         cout << "\n";
     }
 
-    // Display all rental history
+    // Display full rental history
     void displayHistory() const {
         if (rentalHistory.empty()) {
             cout << "No rental history available.\n";
@@ -44,10 +45,10 @@ public:
 };
 
 class CustomerManager {
-    map<string, Customer> customers;  // Keyed by customer ID
+    map<string, Customer> customers;  // Customer list indexed by ID
 
 public:
-    // Add a new customer with ID and name (other info will be input)
+    // Add a new customer
     void addCustomer(string id, string name) {
         if (customers.count(id)) {
             cout << "Customer with ID already exists.\n";
@@ -69,7 +70,7 @@ public:
         cout << "Customer added successfully!\n";
     }
 
-    // Update customer's rental history
+    // Add a rental record to an existing customer
     void updateHistory(string id, string consoleName, int duration) {
         if (!customerExists(id)) {
             cout << "Customer ID not found.\n";
@@ -80,7 +81,7 @@ public:
         cout << "Rental record added successfully!\n";
     }
 
-    // View a customer's full rental history
+    // Display all rental history for a customer
     void viewCustomerHistory(string id) {
         if (!customerExists(id)) {
             cout << "Customer ID not found.\n";
@@ -90,7 +91,7 @@ public:
         customers[id].displayHistory();
     }
 
-    // Display full details (basic + latest rental)
+    // Show customer details (latest rental included)
     void displayCustomerDetails(string id) {
         if (!customerExists(id)) {
             cout << "Customer ID not found.\n";
@@ -100,26 +101,21 @@ public:
         customers[id].displayDetails();
     }
 
-    // View all customers
+    // Show all customers
     void displayAllCustomers() {
         if (customers.empty()) {
             cout << "No customers found.\n";
             return;
         }
 
-        for (const auto& [id, customer] : customers) {
+        for (const auto& [id, customer]: customers) {
             cout << "--- Customer: " << id << " ---\n";
             customer.displayDetails();
         }
     }
 
-    // Check if customer exists
+    // Check if a customer exists by ID
     bool customerExists(string id) {
         return customers.find(id) != customers.end();
-    }
-
-    // (Optional) Get customer object reference if needed
-    Customer& getCustomer(string id) {
-        return customers.at(id);
     }
 };
