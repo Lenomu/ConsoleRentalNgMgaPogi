@@ -1,7 +1,58 @@
 ///////////////////////
 // 👤 MEMBER 6: Validation & Utilities
 ///////////////////////
-bool isValidConsoleID(string id, Inventory& inv); // ID exists & available
-bool isValidCustomerID(string id); // Simple format check
-bool isValidDate(string date); // Optional date format
-void clearScreen(); // Utility
+bool isValidConsoleID(string id, Inventory& inv) {
+    Console* console = inv.searchByID(id);
+    
+    if (console == nullptr) {
+        // Console not found
+        return false;
+    }
+
+    if (!console->available) {
+        // Console is found but not available
+        return false;
+    }
+
+    return true; // Console exists and is available
+}
+
+// Check if the customer ID is valid (alphanumeric and not empty)
+bool isValidCustomerID(string id) {
+    if (id.empty()) {
+        return false;
+    }
+
+    for (int i = 0; i < id.length(); i++) {
+        if (!isalnum(id[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// Check if date is in a simple format: YYYY-MM-DD (basic check only)
+bool isValidDate(string date) {
+    if (date.length() != 10) return false;
+
+    // Check format: 4 digits - 2 digits - 2 digits
+    if (isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]) &&
+        date[4] == '-' &&
+        isdigit(date[5]) && isdigit(date[6]) &&
+        date[7] == '-' &&
+        isdigit(date[8]) && isdigit(date[9])) {
+        return true;
+    }
+
+    return false;
+}
+
+// Clear the console screen
+void clearScreen() {
+#ifdef _WIN32
+    system("cls");  // For Windows
+#else
+    system("clear"); // For Mac/Linux
+#endif
+}
