@@ -1,3 +1,5 @@
+// Note: This assumes the Console struct and Rental struct are already defined as shown in main file
+
 class RentalManager {
 private:
     list<Rental> currentRentals;
@@ -8,7 +10,7 @@ public:
         // Initialize empty rental list
     }
 
-    // Add a new rental record
+    // Add a new rental record with fees
     void rent(Console* c, string customer, string date) {
         // Check if console pointer is valid
         if (c == nullptr) {
@@ -22,34 +24,56 @@ public:
             return;
         }
         
-        // Create new rental record
-        Rental newRental;
-        newRental.customer = customer;
-        newRental.consoleID = c->id;
-        newRental.date = date;
+        // Calculate rental fee based on console type
+        double rentalFee = calculateRentalFee(c->name);
         
-        // Add to current rentals list
-        currentRentals.push_back(newRental);
+        // Display rental details and fee
+        cout << "\n=== Rental Summary ===\n";
+        cout << "Console: " << c->name << " (ID: " << c->id << ")\n";
+        cout << "Customer: " << customer << "\n";
+        cout << "Rental Date: " << date << "\n";
+        cout << "Rental Fee: ₱" << rentalFee << "\n";
         
-        // Mark console as unavailable
-        c->available = false;
+        // Confirm rental
+        char confirm;
+        cout << "Confirm rental? (y/n): ";
+        cin >> confirm;
         
-        cout << "Successfully rented console " << c->id << " (" << c->name << ") to " << customer << " on " << date << ".\n";
-        
-        // Save updated rentals to file
-        saveToFile();
+        if (confirm == 'y' || confirm == 'Y') {
+            // Create new rental record
+            Rental newRental;
+            newRental.customer = customer;
+            newRental.consoleID = c->id;
+            newRental.date = date;
+            newRental.rentalFee = rentalFee;
+            newRental.status = "ACTIVE";
+            
+            // Add to current rentals list
+            currentRentals.push_back(newRental);
+            
+            // Mark console as unavailable
+            c->available = false;
+            
+            cout << "Successfully rented console " << c->id << " (" << c->name << ") to " << customer << " on " << date << ".\n";
+            cout << "Total amount: ₱" << rentalFee << "\n";
+            
+            // Save updated rentals to file
+            saveToFile();
+        } else {
+            cout << "Rental cancelled.\n";
+        }
     }
 
-    // Remove a rental record when console is returned
+    // Remove a rental record when console is returned with confirmation
     void returnRental(string consoleID) {
         // Search for the rental record using iterator
         auto it = currentRentals.begin();
         bool found = false;
+        Rental* foundRental = nullptr;
         
         while (it != currentRentals.end()) {
             if (it->consoleID == consoleID) {
-                cout << "Console " << consoleID << " returned by " << it->customer << ".\n";
-                it = currentRentals.erase(it); // Remove from list and get next iterator
+                foundRental = &(*it);
                 found = true;
                 break;
             } else {
@@ -59,9 +83,46 @@ public:
         
         if (!found) {
             cout << "Error: No rental record found for console " << consoleID << ".\n";
-        } else {
+            return;
+        }
+        
+        // Display return details
+        cout << "\n=== Return Rental Details ===\n";
+        cout << "Console ID: " << foundRental->consoleID << "\n";
+        cout << "Customer: " << foundRental->customer << "\n";
+        cout << "Rental Date: " << foundRental->date << "\n";
+        cout << "Rental Fee: ₱" << foundRental->rentalFee << "\n";
+        cout << "Status: " << foundRental->status << "\n";
+        
+        // Calculate any additional fees (late fees, damage fees, etc.)
+        double additionalFees = calculateAdditionalFees(foundRental);
+        if (additionalFees > 0) {
+            cout << "Additional Fees: ₱" << additionalFees << "\n";
+            cout << "Total Amount Due: ₱" << (foundRental->rentalFee + additionalFees) << "\n";
+        }
+        
+        // Confirm return
+        char confirm;
+        cout << "\nConfirm return rental? (y/n): ";
+        cin >> confirm;
+        
+        if (confirm == 'y' || confirm == 'Y') {
+            cout << "Console " << consoleID << " successfully returned by " << foundRental->customer << ".\n";
+            
+            // Store returned rental info for potential future reference
+            Rental returnedRental = *foundRental;
+            
+            // Remove from current rentals list
+            currentRentals.erase(it);
+            
             // Save updated rentals to file
             saveToFile();
+            
+            // Return the rental pointer data for other components to use
+            // (This would typically be used by other managers for updating inventory, customer history, etc.)
+            
+        } else {
+            cout << "Return cancelled.\n";
         }
     }
 
@@ -80,12 +141,30 @@ public:
         
         // Read rental records line by line
         while (file >> customer >> consoleID >> date) {
-            Rental rental;
-            rental.customer = customer;
-            rental.consoleID = consoleID;
-            rental.date = date;
+            double rentalFee;
+            string status;
             
-            currentRentals.push_back(rental);
+            // Try to read fee and status (for backward compatibility)
+            if (file >> rentalFee >> status) {
+                Rental rental;
+                rental.customer = customer;
+                rental.consoleID = consoleID;
+                rental.date = date;
+                rental.rentalFee = rentalFee;
+                rental.status = status;
+                
+                currentRentals.push_back(rental);
+            } else {
+                // Old format without fee and status
+                Rental rental;
+                rental.customer = customer;
+                rental.consoleID = consoleID;
+                rental.date = date;
+                rental.rentalFee = 0.0; // Default fee
+                rental.status = "ACTIVE"; // Default status
+                
+                currentRentals.push_back(rental);
+            }
         }
         
         file.close();
@@ -103,7 +182,8 @@ public:
         
         // Write each rental record to file
         for (const auto& rental : currentRentals) {
-            file << rental.customer << " " << rental.consoleID << " " << rental.date << "\n";
+            file << rental.customer << " " << rental.consoleID << " " << rental.date 
+                 << " " << rental.rentalFee << " " << rental.status << "\n";
         }
         
         file.close();
@@ -117,12 +197,13 @@ public:
         }
         
         cout << "\n=== Current Active Rentals ===\n";
-        cout << "Customer\t\tConsole ID\tRental Date\n";
-        cout << "----------------------------------------\n";
+        cout << "Customer\t\tConsole ID\tRental Date\tFee\tStatus\n";
+        cout << "--------------------------------------------------------\n";
         
         // Use range-based for loop to display all rentals
         for (const auto& rental : currentRentals) {
-            cout << rental.customer << "\t\t" << rental.consoleID << "\t\t" << rental.date << "\n";
+            cout << rental.customer << "\t\t" << rental.consoleID << "\t\t" 
+                 << rental.date << "\t₱" << rental.rentalFee << "\t" << rental.status << "\n";
         }
         
         cout << "\nTotal active rentals: " << currentRentals.size() << "\n";
@@ -237,8 +318,44 @@ bool validateRentalInput(string customer, string consoleID, string date) {
     return true;
 }
 
-// Function to format rental date (simple implementation)
-string getCurrentDate() {
-    // Simple date format - in real implementation, use proper date/time library
-    return "2024-01-15"; // Placeholder - replace with actual date logic
+// Fee calculation functions for different console types
+double calculateRentalFee(string consoleName) {
+    // Convert to lowercase for case-insensitive comparison
+    transform(consoleName.begin(), consoleName.end(), consoleName.begin(), ::tolower);
+    
+    // Different rental fees based on console type (₱500 - ₱1000 range)
+    if (consoleName.find("ps5") != string::npos || consoleName.find("playstation 5") != string::npos) {
+        return 950.0; // Premium console
+    } else if (consoleName.find("ps4") != string::npos || consoleName.find("playstation 4") != string::npos) {
+        return 750.0;
+    } else if (consoleName.find("xbox") != string::npos && consoleName.find("series") != string::npos) {
+        return 950.0; // Xbox Series X/S
+    } else if (consoleName.find("xbox one") != string::npos) {
+        return 750.0;
+    } else if (consoleName.find("nintendo switch") != string::npos || consoleName.find("switch") != string::npos) {
+        return 800.0;
+    } else if (consoleName.find("nintendo") != string::npos) {
+        return 600.0; // Older Nintendo consoles
+    } else if (consoleName.find("steam deck") != string::npos) {
+        return 1000.0; // Most expensive
+    } else {
+        return 650.0; // Default fee for other consoles
+    }
+}
+
+// Calculate additional fees (late fees, damage, etc.)
+double calculateAdditionalFees(Rental* rental) {
+    double additionalFees = 0.0;
+    
+    // Check if rental is overdue (simple implementation)
+    if (rental->status == "OVERDUE") {
+        additionalFees += 200.0; // Late fee ₱200
+    }
+    
+    // Could add more fee types here:
+    // - Damage fees: ₱500-1500
+    // - Cleaning fees: ₱100-300
+    // - Extension fees: ₱100-500
+    
+    return additionalFees;
 }
