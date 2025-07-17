@@ -1,4 +1,8 @@
 #include <iostream>
+#include <vector>
+#include <string>
+#include <fstream> // Required for file operations
+#include <algorithm> // Required for std::find_if and std::transform
 
 ///////////////////////
 // 👤 MEMBER 1: Inventory Manager
@@ -13,20 +17,98 @@ class Inventory {
     vector<Console> consoles;
 
 public:
-    void loadFromFile(); // Load consoles from "inventory.txt"
+    void loadFromFile() {
+        ifstream file("inventory.txt");
+        if (!file.is_open()) {
+            cout << "Warning: Could not open inventory.txt. Starting with empty inventory.\n";
+            return;
+        }
 
-    void saveToFile();   // Save consoles to "inventory.txt"
+        consoles.clear(); // Clear existing consoles
 
-    void displayAll();   // Show all available consoles
+        string id, name, availability_str;
+        while (file >> id >> name >> availability_str) {
+            Console c;
+            c.id = id;
+            c.name = name;
+            c.available = (availability_str == "1"); // "1" for available, "0" for not
+            consoles.push_back(c);
+        }
+        file.close();
+        cout << "Loaded " << consoles.size() << " consoles from file.\n";
+    }
 
-    Console* rentConsole(string id);  // Mark console as unavailable
+    void saveToFile() {
+        ofstream file("inventory.txt");
+        if (!file.is_open()) {
+            cout << "Error: Could not save inventory to file.\n";
+            return;
+        }
 
-    void returnConsole(string id);    // Mark console as available
+        for (const auto& c : consoles) {
+            file << c.id << " " << c.name << " " << (c.available ? "1" : "0") << "\n";
+        }
+        file.close();
+    }
 
-    Console* searchByID(string id);   // Return pointer if found
+    void displayAll() {
+        cout << "\n=== Available Consoles ===\n";
+        if (consoles.empty()) {
+            cout << "No consoles in inventory.\n";
+            return;
+        }
+        cout << "ID\t\tName\t\tAvailable\n";
+        cout << "----------------------------------------\n";
+        for (const auto& c : consoles) {
+            if (c.available) {
+                cout << c.id << "\t\t" << c.name << "\t\tYes\n";
+            }
+        }
+        cout << "\n";
+    }
 
-    vector<Console> searchByName(string keyword); // Return all matching
+    Console* rentConsole(string id) {
+        Console* console = searchByID(id);
+        if (console != nullptr && console->available) {
+            console->available = false;
+            saveToFile(); // Save changes to file
+            return console;
+        }
+        return nullptr; // Console not found or not available
+    }
 
+    void returnConsole(string id) {
+        Console* console = searchByID(id);
+        if (console != nullptr && !console->available) {
+            console->available = true;
+            saveToFile(); // Save changes to file
+            cout << "Console " << id << " marked as available.\n";
+        } else {
+            cout << "Error: Console " << id << " not found or already available.\n";
+        }
+    }
 
-    
+    Console* searchByID(string id) {
+        for (auto& c : consoles) {
+            if (c.id == id) {
+                return &c;
+            }
+        }
+        return nullptr; // Not found
+    }
+
+    vector<Console> searchByName(string keyword) {
+        vector<Console> matchingConsoles;
+        // Convert keyword to lowercase for case-insensitive search
+        transform(keyword.begin(), keyword.end(), keyword.begin(), ::tolower);
+
+        for (const auto& c : consoles) {
+            string consoleNameLower = c.name;
+            transform(consoleNameLower.begin(), consoleNameLower.end(), consoleNameLower.begin(), ::tolower);
+            if (consoleNameLower.find(keyword) != string::npos) {
+                matchingConsoles.push_back(c);
+            }
+        }
+        return matchingConsoles;
+    }
 };
