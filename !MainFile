@@ -4,10 +4,34 @@
 #include <list>
 #include <map>
 #include <string>
+#include <algorithm> // For std::transform, std::find_if
+#include <cctype>    // For isalnum, isdigit
+
 using namespace std;
 
+// Forward Declarations (if classes refer to each other in headers, though not strictly needed here if definitions are ordered correctly)
+// struct Console; // Already defined in Inventory section
+// struct Rental;  // Already defined in RentalManager section
+// class Inventory; // Defined below
+// class RentalManager; // Defined below
+// class Customer; // Defined below
+// class CustomerManager; // Defined below
+// class FileManager; // Defined below
+
+// Utility Functions (MEMBER 6) - Place them here or in a separate utilities.h/.cpp
+// Defined after main classes often for simplicity in single-file projects,
+// but declared here if used by classes defined above them.
+bool isValidConsoleID(string id, Inventory& inv); // Needs Inventory class to be defined or forward declared
+bool isValidCustomerID(string id);
+bool isValidDate(string date);
+void clearScreen();
+double calculateRentalFee(string consoleName);
+double calculateAdditionalFees(Rental* rental); // Needs Rental struct
+bool validateRentalInput(string customer, string consoleID, string date);
+
+
 ///////////////////////
-// 👤 MEMBER 1: Inventory Manager
+// MEMBER 1: Inventory Manager (from M1 Lino.txt and !MainFile.txt)
 ///////////////////////
 struct Console {
     string id;
@@ -19,123 +43,811 @@ class Inventory {
     vector<Console> consoles;
 
 public:
-    void loadFromFile(); // Load consoles from "inventory.txt"
-    void saveToFile();   // Save consoles to "inventory.txt"
-    void displayAll();   // Show all available consoles
-    Console* rentConsole(string id);  // Mark console as unavailable
-    void returnConsole(string id);    // Mark console as available
-    Console* searchByID(string id);   // Return pointer if found
-    vector<Console> searchByName(string keyword); // Return all matching
+    void loadFromFile() {
+        ifstream file("inventory.txt");
+        if (!file.is_open()) {
+            cout << "Warning: Could not open inventory.txt. Starting with empty inventory.\n";
+            return;
+        }
+
+        consoles.clear();
+        string id, name, availability_str;
+        while (file >> id >> name >> availability_str) {
+            Console c;
+            c.id = id;
+            c.name = name;
+            c.available = (availability_str == "1");
+            consoles.push_back(c);
+        }
+        file.close();
+        cout << "Loaded " << consoles.size() << " consoles from file.\n";
+    }
+
+    void saveToFile() {
+        ofstream file("inventory.txt");
+        if (!file.is_open()) {
+            cout << "Error: Could not save inventory to file.\n";
+            return;
+        }
+
+        for (const auto& c : consoles) {
+            file << c.id << " " << c.name << " " << (c.available ? "1" : "0") << "\n";
+        }
+        file.close();
+    }
+
+    void displayAll() {
+        cout << "\n=== Available Consoles ===\n";
+        if (consoles.empty()) {
+            cout << "No consoles in inventory.\n";
+            return;
+        }
+        cout << "ID\t\tName\t\tAvailable\n";
+        cout << "----------------------------------------\n";
+        for (const auto& c : consoles) {
+            if (c.available) {
+                cout << c.id << "\t\t" << c.name << "\t\tYes\n";
+            }
+        }
+        cout << "\n";
+    }
+
+    Console* rentConsole(string id) {
+        Console* console = searchByID(id);
+        if (console != nullptr && console->available) {
+            console->available = false;
+            saveToFile();
+            return console;
+        }
+        return nullptr;
+    }
+
+    void returnConsole(string id) {
+        Console* console = searchByID(id);
+        if (console != nullptr && !console->available) {
+            console->available = true;
+            saveToFile();
+            cout << "Console " << id << " marked as available.\n";
+        } else {
+            cout << "Error: Console " << id << " not found or already available.\n";
+        }
+    }
+
+    Console* searchByID(string id) {
+        for (auto& c : consoles) {
+            if (c.id == id) {
+                return &c;
+            }
+        }
+        return nullptr;
+    }
+
+    vector<Console> searchByName(string keyword) {
+        vector<Console> matchingConsoles;
+        transform(keyword.begin(), keyword.end(), keyword.begin(), ::tolower);
+        for (const auto& c : consoles) {
+            string consoleNameLower = c.name;
+            transform(consoleNameLower.begin(), consoleNameLower.end(), consoleNameLower.begin(), ::tolower);
+            if (consoleNameLower.find(keyword) != string::npos) {
+                matchingConsoles.push_back(c);
+            }
+        }
+        return matchingConsoles;
+    }
 };
 
+
 ///////////////////////
-// 👤 MEMBER 2: Rental Manager
+// MEMBER 2: Rental Manager (from M2 dei.txt and !MainFile.txt)
 ///////////////////////
 struct Rental {
     string customer;
     string consoleID;
     string date;
+    double rentalFee; // Added from M2 dei.txt
+    string status;    // Added from M2 dei.txt
 };
 
 class RentalManager {
+private:
     list<Rental> currentRentals;
-
 public:
-    void rent(Console* c, string customer, string date); // Add rental
-    void returnRental(string consoleID); // Remove rental
-    void loadFromFile();  // Load current rentals from "rentals.txt"
-    void showAllRentals(); // Display active rentals
-    bool isConsoleRented(string consoleID); // Check if already rented
+    RentalManager() {
+        // Initialize empty rental list
+    }
+
+    void rent(Console* c, string customer, string date) {
+        if (c == nullptr) {
+            [cite_start]cout << "Error: Invalid console selected for rental.\n"; [cite: 28]
+            return;
+        }
+        if (isConsoleRented(c->id)) {
+            [cite_start]cout << "Error: Console " << c->id << " is already rented.\n"; [cite: 29]
+            return;
+        }
+        [cite_start]double rentalFee = calculateRentalFee(c->name); [cite: 30]
+        [cite_start]cout << "\n=== Rental Summary ===\n"; [cite: 31]
+        [cite_start]cout << "Console: " << c->name << " (ID: " << c->id << ")\n"; [cite: 32]
+        [cite_start]cout << "Customer: " << customer << "\n"; [cite: 32]
+        [cite_start]cout << "Rental Date: " << date << "\n"; [cite: 33]
+        [cite_start]cout << "Rental Fee: ₱" << rentalFee << "\n"; [cite: 33]
+        [cite_start]char confirm; [cite: 34]
+        [cite_start]cout << "Confirm rental? (y/n): "; [cite: 34]
+        cin >> confirm;
+        if (confirm == 'y' || confirm == 'Y') {
+            [cite_start]Rental newRental; [cite: 35]
+            [cite_start]newRental.customer = customer; [cite: 35]
+            [cite_start]newRental.consoleID = c->id; [cite: 36]
+            [cite_start]newRental.date = date; [cite: 36]
+            [cite_start]newRental.rentalFee = rentalFee; [cite: 36]
+            [cite_start]newRental.status = "ACTIVE"; [cite: 36]
+            [cite_start]currentRentals.push_back(newRental); [cite: 37]
+            [cite_start]c->available = false; [cite: 38] // Mark console as unavailable in Inventory
+            [cite_start]cout << "Successfully rented console " << c->id << " (" << c->name << ") to " << customer << " on " << date << ".\n"; [cite: 39]
+            [cite_start]cout << "Total amount: ₱" << rentalFee << "\n"; [cite: 39]
+            [cite_start]saveToFile(); [cite: 40]
+        } else {
+            [cite_start]cout << "Rental cancelled.\n"; [cite: 41]
+        }
+    }
+
+    void returnRental(string consoleID) {
+        [cite_start]auto it = currentRentals.begin(); [cite: 42]
+        [cite_start]bool found = false; [cite: 42]
+        [cite_start]Rental* foundRental = nullptr; [cite: 43]
+        while (it != currentRentals.end()) {
+            if (it->consoleID == consoleID) {
+                [cite_start]foundRental = &(*it); [cite: 43]
+                [cite_start]found = true; [cite: 43]
+                break;
+            } else {
+                [cite_start]++it; [cite: 44]
+            }
+        }
+
+        if (!found) {
+            [cite_start]cout << "Error: No rental record found for console " << consoleID << ".\n"; [cite: 45]
+            return;
+        }
+
+        [cite_start]cout << "\n=== Return Rental Details ===\n"; [cite: 46]
+        [cite_start]cout << "Console ID: " << foundRental->consoleID << "\n"; [cite: 46]
+        [cite_start]cout << "Customer: " << foundRental->customer << "\n"; [cite: 47]
+        [cite_start]cout << "Rental Date: " << foundRental->date << "\n"; [cite: 47]
+        [cite_start]cout << "Rental Fee: ₱" << foundRental->rentalFee << "\n"; [cite: 48]
+        [cite_start]cout << "Status: " << foundRental->status << "\n"; [cite: 48]
+
+        [cite_start]double additionalFees = calculateAdditionalFees(foundRental); [cite: 49]
+        if (additionalFees > 0) {
+            [cite_start]cout << "Additional Fees: ₱" << additionalFees << "\n"; [cite: 50]
+            [cite_start]cout << "Total Amount Due: ₱" << (foundRental->rentalFee + additionalFees) << "\n"; [cite: 51]
+        }
+
+        [cite_start]char confirm; [cite: 52]
+        [cite_start]cout << "\nConfirm return rental? (y/n): "; [cite: 53]
+        cin >> confirm;
+        if (confirm == 'y' || confirm == 'Y') {
+            [cite_start]cout << "Console " << consoleID << " successfully returned by " << foundRental->customer << ".\n"; [cite: 54]
+            [cite_start]Rental returnedRental = *foundRental; [cite: 55]
+            [cite_start]currentRentals.erase(it); [cite: 56]
+            [cite_start]saveToFile(); [cite: 57]
+            // The Inventory Manager will mark the console as available.
+        } else {
+            [cite_start]cout << "Return cancelled.\n"; [cite: 58]
+        }
+    }
+
+    void loadFromFile() {
+        [cite_start]ifstream file("rentals.txt"); [cite: 59]
+        if (!file.is_open()) {
+            [cite_start]cout << "Warning: Could not open rentals.txt. Starting with empty rental list.\n"; [cite: 60]
+            return;
+        }
+
+        [cite_start]currentRentals.clear(); [cite: 61]
+        [cite_start]string customer, consoleID, date; [cite: 62]
+        while (file >> customer >> consoleID >> date) {
+            [cite_start]double rentalFee; [cite: 63]
+            [cite_start]string status; [cite: 63]
+            if (file >> rentalFee >> status) {
+                [cite_start]Rental rental; [cite: 64]
+                [cite_start]rental.customer = customer; [cite: 64]
+                [cite_start]rental.consoleID = consoleID; [cite: 65]
+                [cite_start]rental.date = date; [cite: 65]
+                [cite_start]rental.rentalFee = rentalFee; [cite: 65]
+                [cite_start]rental.status = status; [cite: 65]
+                [cite_start]currentRentals.push_back(rental); [cite: 65]
+            } else {
+                [cite_start]Rental rental; [cite: 66]
+                [cite_start]rental.customer = customer; [cite: 66]
+                [cite_start]rental.consoleID = consoleID; [cite: 66]
+                [cite_start]rental.date = date; [cite: 66]
+                [cite_start]rental.rentalFee = 0.0; [cite: 67]
+                [cite_start]rental.status = "ACTIVE"; [cite: 68]
+                [cite_start]currentRentals.push_back(rental); [cite: 69]
+            }
+        }
+        [cite_start]file.close(); [cite: 70]
+        [cite_start]cout << "Loaded " << currentRentals.size() << " rental records from file.\n"; [cite: 71]
+    }
+
+    void saveToFile() {
+        [cite_start]ofstream file("rentals.txt"); [cite: 72]
+        if (!file.is_open()) {
+            [cite_start]cout << "Error: Could not save rentals to file.\n"; [cite: 73]
+            return;
+        }
+        for (const auto& rental : currentRentals) {
+            file << rental.customer << " " << rental.consoleID << " " << rental.date
+                 [cite_start]<< " " << rental.rentalFee << " " << rental.status << "\n"; [cite: 74]
+        }
+        [cite_start]file.close(); [cite: 75]
+    }
+
+    void showAllRentals() {
+        if (currentRentals.empty()) {
+            [cite_start]cout << "\n=== No Active Rentals ===\n"; [cite: 76]
+            return;
+        }
+        [cite_start]cout << "\n=== Current Active Rentals ===\n"; [cite: 77]
+        [cite_start]cout << "Customer\t\tConsole ID\tRental Date\tFee\tStatus\n"; [cite: 77]
+        cout << "--------------------------------------------------------\n";
+        for (const auto& rental : currentRentals) {
+            cout << rental.customer << "\t\t" << rental.consoleID << "\t\t"
+                 [cite_start]<< rental.date << "\t₱" << rental.rentalFee << "\t" << rental.status << "\n"; [cite: 78]
+        }
+        [cite_start]cout << "\nTotal active rentals: " << currentRentals.size() << "\n"; [cite: 79]
+    }
+
+    bool isConsoleRented(string consoleID) {
+        auto it = find_if(currentRentals.begin(), currentRentals.end(),
+            [consoleID](const Rental& rental) {
+                return rental.consoleID == consoleID;
+            [cite_start]}); [cite: 80]
+        [cite_start]return it != currentRentals.end(); [cite: 80]
+    }
+
+    Rental* getRentalInfo(string consoleID) {
+        for (auto& rental : currentRentals) {
+            if (rental.consoleID == consoleID) {
+                [cite_start]return &rental; [cite: 81]
+            }
+        }
+        [cite_start]return nullptr; [cite: 82]
+    }
+
+    list<Rental> getCustomerRentals(string customer) {
+        [cite_start]list<Rental> customerRentals; [cite: 83]
+        for (const auto& rental : currentRentals) {
+            if (rental.customer == customer) {
+                [cite_start]customerRentals.push_back(rental); [cite: 84]
+            }
+        }
+        [cite_start]return customerRentals; [cite: 85]
+    }
+
+    int getTotalRentals() {
+        [cite_start]return currentRentals.size(); [cite: 86]
+    }
+
+    bool hasActiveRentals(string customer) {
+        auto it = find_if(currentRentals.begin(), currentRentals.end(),
+            [customer](const Rental& rental) {
+                return rental.customer == customer;
+            [cite_start]}); [cite: 87]
+        [cite_start]return it != currentRentals.end(); [cite: 87]
+    }
+
+    void showRentalStatistics() {
+        [cite_start]cout << "\n=== Rental Statistics ===\n"; [cite: 88]
+        [cite_start]cout << "Total active rentals: " << currentRentals.size() << "\n"; [cite: 89]
+        [cite_start]if (!currentRentals.empty()) { [cite: 89]
+            [cite_start]list<string> uniqueCustomers; [cite: 90]
+            [cite_start]for (const auto& rental : currentRentals) { [cite: 90]
+                [cite_start]bool found = false; [cite: 91]
+                [cite_start]for (const auto& customer : uniqueCustomers) { [cite: 91]
+                    if (customer == rental.customer) {
+                        [cite_start]found = true; [cite: 92]
+                        break;
+                    }
+                }
+                if (!found) {
+                    [cite_start]uniqueCustomers.push_back(rental.customer); [cite: 93]
+                }
+            }
+            [cite_start]cout << "Unique customers with active rentals: " << uniqueCustomers.size() << "\n"; [cite: 94]
+        }
+    }
+
+    void clearAllRentals() {
+        [cite_start]currentRentals.clear(); [cite: 95]
+        [cite_start]saveToFile(); [cite: 95]
+        cout << "All rental records cleared.\n";
+    }
 };
 
+
 ///////////////////////
-// 👤 MEMBER 3: Customer Manager
+// MEMBER 3: Customer Manager (from M3 Cy.txt and !MainFile.txt)
 ///////////////////////
 class Customer {
 public:
-    string id;
-    string name;
-    list<string> rentalHistory;
+    [cite_start]string id; [cite: 1]
+    [cite_start]string name; [cite: 2]
+    [cite_start]string contactNumber; [cite: 3]
+    [cite_start]int age; [cite: 4]
+    [cite_start]list<string> rentalHistory; [cite: 4]
 
-    void addRental(string consoleID);
+    void addRental(string consoleName, int hours) {
+        [cite_start]string record = consoleName + " - " + to_string(hours) + " hour(s)"; [cite: 5]
+        [cite_start]rentalHistory.push_back(record); [cite: 5]
+    }
+
+    void displayDetails() const {
+        [cite_start]cout << "Name: " << name << "\n"; [cite: 6]
+        [cite_start]cout << "Age: " << age << "\n"; [cite: 6]
+        [cite_start]cout << "Contact: " << contactNumber << "\n"; [cite: 7]
+        [cite_start]cout << "ID: " << id << "\n"; [cite: 7]
+
+        if (!rentalHistory.empty()) {
+            [cite_start]cout << "Last Rental: " << rentalHistory.back() << "\n"; [cite: 8]
+        }
+        [cite_start]cout << "\n"; [cite: 9]
+    }
+
+    void displayHistory() const {
+        if (rentalHistory.empty()) {
+            [cite_start]cout << "No rental history available.\n"; [cite: 10]
+            return;
+        }
+        [cite_start]cout << "--- Rental History for " << name << " ---\n"; [cite: 11]
+        [cite_start]int i = 1; [cite: 11]
+        for (const auto& record : rentalHistory) {
+            [cite_start]cout << "Rental #" << i++ << ": " << record << "\n"; [cite: 12]
+        }
+        cout << "\n";
+    }
 };
 
 class CustomerManager {
-    map<string, Customer> customers;
+    [cite_start]map<string, Customer> customers; [cite: 13]
 
 public:
-    void loadFromFile(); // Optional: Load from "customers.txt"
-    void addCustomer(string id, string name);
-    void updateHistory(string id, string consoleID);
-    void viewCustomerHistory(string id);
-    bool customerExists(string id);
+    void loadFromFile() {
+        // Optional: Implement loading from customers.txt if needed
+        // For this example, we'll assume customers are added manually or persistent storage is simplified.
+        cout << "CustomerManager: Load from file not fully implemented for this demo.\n";
+    }
+
+    void addCustomer(string id, string name) {
+        [cite_start]if (customers.count(id)) { [cite: 14]
+            [cite_start]cout << "Customer with ID already exists.\n"; [cite: 14]
+            return;
+        }
+
+        Customer newCustomer;
+        newCustomer.id = id;
+        [cite_start]newCustomer.name = name; [cite: 15]
+        [cite_start]cout << "Enter Age: "; [cite: 15]
+        cin >> newCustomer.age;
+
+        cout << "Enter Contact Number: ";
+        cin >> newCustomer.contactNumber;
+
+        [cite_start]customers[id] = newCustomer; [cite: 16]
+        [cite_start]cout << "Customer added successfully!\n"; [cite: 16]
+    }
+
+    void updateHistory(string id, string consoleName, int duration) { // Modified to match Customer::addRental
+        [cite_start]if (!customerExists(id)) { [cite: 17]
+            [cite_start]cout << "Customer ID not found.\n"; [cite: 17]
+            return;
+        }
+        [cite_start]customers[id].addRental(consoleName, duration); [cite: 18]
+        [cite_start]cout << "Rental record added successfully!\n"; [cite: 18]
+    }
+
+    void viewCustomerHistory(string id) {
+        [cite_start]if (!customerExists(id)) { [cite: 19]
+            [cite_start]cout << "Customer ID not found.\n"; [cite: 19]
+            return;
+        }
+        [cite_start]customers[id].displayHistory(); [cite: 20]
+    }
+
+    void displayCustomerDetails(string id) {
+        [cite_start]if (!customerExists(id)) { [cite: 21]
+            [cite_start]cout << "Customer ID not found.\n"; [cite: 21]
+            return;
+        }
+        [cite_start]customers[id].displayDetails(); [cite: 22]
+    }
+
+    void displayAllCustomers() {
+        [cite_start]if (customers.empty()) { [cite: 23]
+            [cite_start]cout << "No customers found.\n"; [cite: 23]
+            return;
+        }
+        [cite_start]for (const auto& [id, customer]: customers) { [cite: 24]
+            [cite_start]cout << "--- Customer: " << id << " ---\n"; [cite: 24]
+            [cite_start]customer.displayDetails(); [cite: 24]
+        }
+    }
+
+    bool customerExists(string id) {
+        [cite_start]return customers.find(id) != customers.end(); [cite: 25]
+    }
 };
 
+
 ///////////////////////
-// 👤 MEMBER 4: File & Report Manager
+// MEMBER 4: File & Report Manager (from M4 Ducs.txt and !MainFile.txt)
 ///////////////////////
 class FileManager {
 public:
-    void showAllFiles(); // Optional: Debug output of text files
-    void generateReport(); // Print summary: total consoles, rented, returned
+    void showAllFiles() {
+        [cite_start]cout << "\n--- Inventory File (inventory.txt) ---\n"; [cite: 123]
+        [cite_start]ifstream invFile("inventory.txt"); [cite: 123]
+        string line;
+        [cite_start]if (invFile.is_open()) { [cite: 124]
+            [cite_start]while (getline(invFile, line)) { [cite: 124]
+                [cite_start]cout << line << endl; [cite: 124]
+            }
+            [cite_start]invFile.close(); [cite: 125]
+        } else {
+            [cite_start]cout << "Unable to open inventory.txt\n"; [cite: 126]
+        }
+
+        cout << "\n--- Rentals File (rentals.txt) ---\n";
+        [cite_start]ifstream rentalFile("rentals.txt"); [cite: 127]
+        [cite_start]if (rentalFile.is_open()) { [cite: 128]
+            [cite_start]while (getline(rentalFile, line)) { [cite: 128]
+                [cite_start]cout << line << endl; [cite: 128]
+            }
+            [cite_start]rentalFile.close(); [cite: 129]
+        } else {
+            [cite_start]cout << "Unable to open rentals.txt\n"; [cite: 130]
+        }
+    }
+
+    void generateReport() {
+        [cite_start]ifstream invFile("inventory.txt"); [cite: 131]
+        [cite_start]ifstream rentalFile("rentals.txt"); [cite: 131]
+
+        int totalConsoles = 0;
+        [cite_start]int rentedConsoles = 0; [cite: 132]
+        [cite_start]if (invFile.is_open()) { [cite: 133]
+            [cite_start]string id, name, availableStr; [cite: 133]
+            [cite_start]while (invFile >> id >> name >> availableStr) { [cite: 134]
+                [cite_start]totalConsoles++; [cite: 134]
+                [cite_start]if (availableStr == "0") { [cite: 135]
+                    [cite_start]rentedConsoles++; [cite: 135]
+                }
+            }
+            [cite_start]invFile.close(); [cite: 136]
+        }
+
+        [cite_start]int returnedConsoles = totalConsoles - rentedConsoles; [cite: 137]
+        [cite_start]cout << "\n--- System Report ---\n"; [cite: 138]
+        [cite_start]cout << "Total Consoles      : " << totalConsoles << endl; [cite: 139]
+        [cite_start]cout << "Currently Rented    : " << rentedConsoles << endl; [cite: 140]
+        [cite_start]cout << "Currently Available : " << returnedConsoles << endl; [cite: 140]
+    }
 };
 
+
 ///////////////////////
-// 👤 MEMBER 5: UI & Menu Driver
+// MEMBER 6: Validation & Utilities (from M6 Kyle.txt and M2 dei.txt)
 ///////////////////////
-void mainMenu(Inventory& inv, RentalManager& rentMgr, CustomerManager& custMgr) {
-    int choice;
+bool isValidConsoleID(string id, Inventory& inv) {
+    [cite_start]Console* console = inv.searchByID(id); [cite: 113]
+    if (console == nullptr) {
+        [cite_start]return false; [cite: 114]
+    }
+    // Note: The original isValidConsoleID in M6 Kyle.txt also checked availability.
+    // For general ID validation, we might just check existence. If for rental,
+    // additional availability check is done in rentConsole.
+    // Based on M6, it seems it's used for rental validity check.
+    if (!console->available) {
+        [cite_start]return false; [cite: 115]
+    }
+    return true; [cite_start]// Console exists and is available [cite: 115]
+}
+
+bool isValidCustomerID(string id) {
+    if (id.empty()) {
+        [cite_start]return false; [cite: 116]
+    }
+    for (int i = 0; i < id.length(); i++) {
+        if (!isalnum(id[i])) {
+            [cite_start]return false; [cite: 117]
+        }
+    }
+    [cite_start]return true; [cite: 118]
+}
+
+bool isValidDate(string date) {
+    [cite_start]if (date.length() != 10) return false; [cite: 119]
+    if (isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]) &&
+        date[4] == '-' &&
+        isdigit(date[5]) && isdigit(date[6]) &&
+        date[7] == '-' &&
+        isdigit(date[8]) && isdigit(date[9])) {
+        [cite_start]return true; [cite: 120]
+    }
+    return false;
+}
+
+void clearScreen() {
+#ifdef _WIN32
+    [cite_start]system("cls"); [cite: 121]
+#else
+    system("clear");
+#endif
+}
+
+// Utility functions from RentalManager
+bool validateRentalInput(string customer, string consoleID, string date) {
+    if (customer.empty()) {
+        [cite_start]cout << "Error: Customer name cannot be empty.\n"; [cite: 96]
+        return false;
+    }
+    if (consoleID.empty()) {
+        [cite_start]cout << "Error: Console ID cannot be empty.\n"; [cite: 97]
+        return false;
+    }
+    if (date.empty()) {
+        [cite_start]cout << "Error: Date cannot be empty.\n"; [cite: 98]
+        return false;
+    }
+    [cite_start]return true; [cite: 99]
+}
+
+double calculateRentalFee(string consoleName) {
+    [cite_start]transform(consoleName.begin(), consoleName.end(), consoleName.begin(), ::tolower); [cite: 100]
+    if (consoleName.find("ps5") != string::npos || consoleName.find("playstation 5") != string::npos) {
+        [cite_start]return 950.0; [cite: 101]
+    } else if (consoleName.find("ps4") != string::npos || consoleName.find("playstation 4") != string::npos) {
+        [cite_start]return 750.0; [cite: 102]
+    } else if (consoleName.find("xbox") != string::npos && consoleName.find("series") != string::npos) {
+        [cite_start]return 950.0; [cite: 103]
+    } else if (consoleName.find("xbox one") != string::npos) {
+        [cite_start]return 750.0; [cite: 104]
+    } else if (consoleName.find("nintendo switch") != string::npos || consoleName.find("switch") != string::npos) {
+        [cite_start]return 800.0; [cite: 105]
+    } else if (consoleName.find("nintendo") != string::npos) {
+        [cite_start]return 600.0; [cite: 106]
+    } else if (consoleName.find("steam deck") != string::npos) {
+        [cite_start]return 1000.0; [cite: 107]
+    } else {
+        [cite_start]return 650.0; [cite: 108]
+    }
+}
+
+double calculateAdditionalFees(Rental* rental) {
+    [cite_start]double additionalFees = 0.0; [cite: 109]
+    if (rental->status == "OVERDUE") {
+        [cite_start]additionalFees += 200.0; [cite: 110]
+    }
+    [cite_start]return additionalFees; [cite: 111]
+}
+
+
+///////////////////////
+// MEMBER 5: UI & Menu Driver (from M5 Brent.txt and !MainFile.txt)
+///////////////////////
+void mainMenu(Inventory& inv, RentalManager& rentMgr, CustomerManager& custMgr, FileManager& fileMgr) { // Added fileMgr
+    [cite_start]int choice; [cite: 159]
+    string id, name, date, customerID, consoleID;
+    Console* rentedConsole = nullptr;
+
     do {
-        cout << "\n===== Game Console Rental System =====\n";
-        cout << "1. View Available Consoles\n";
-        cout << "2. Rent Console\n";
-        cout << "3. Return Console\n";
-        cout << "4. View Current Rentals\n";
-        cout << "5. View Customer History\n";
-        cout << "6. Exit\n";
-        cout << "Enter choice: ";
+        clearScreen();
+        [cite_start]cout << "\n===== Game Console Rental System =====\n"; [cite: 160]
+        [cite_start]cout << "1. View Available Consoles\n"; [cite: 160]
+        [cite_start]cout << "2. Rent Console\n"; [cite: 161]
+        [cite_start]cout << "3. Return Console\n"; [cite: 161]
+        [cite_start]cout << "4. View Current Rentals\n"; [cite: 161]
+        cout << "5. Customer Management\n"; // Changed from "View Customer History"
+        cout << "6. System Reports and Files\n"; // New option
+        cout << "7. Exit\n"; // Changed from 6
+        [cite_start]cout << "Enter choice: "; [cite: 162]
         cin >> choice;
 
-        // Use switch to call other functions here
         switch (choice) {
             case 1:
+                [cite_start]inv.displayAll(); [cite: 163]
                 break;
-            case 2:
+            case 2: { // Rent Console
+                cout << "Enter Customer ID: ";
+                cin >> customerID;
+                if (!isValidCustomerID(customerID)) {
+                    cout << "Invalid Customer ID format. Use alphanumeric characters only.\n";
+                    break;
+                }
+                // Add customer if not exists (simplified for demo)
+                if (!custMgr.customerExists(customerID)) {
+                    cout << "Customer not found. Adding new customer...\n";
+                    cout << "Enter Customer Name: ";
+                    cin.ignore(); // Consume newline left by previous cin
+                    getline(cin, name);
+                    custMgr.addCustomer(customerID, name);
+                } else {
+                    cout << "Enter Customer Name (for verification): ";
+                    cin.ignore();
+                    getline(cin, name); // Get name to pass to addRental, not strictly used for verification here
+                }
+
+
+                cout << "Enter Console ID to rent: ";
+                cin >> consoleID;
+                if (!isValidConsoleID(consoleID, inv)) {
+                    cout << "Invalid Console ID or console not available.\n";
+                    break;
+                }
+                if (rentMgr.isConsoleRented(consoleID)) {
+                    cout << "Console " << consoleID << " is already rented.\n";
+                    break;
+                }
+
+                cout << "Enter Rental Date (YYYY-MM-DD): ";
+                cin >> date;
+                if (!isValidDate(date)) {
+                    cout << "Invalid Date format. Please use YYYY-MM-DD.\n";
+                    break;
+                }
+
+                rentedConsole = inv.rentConsole(consoleID); // Mark as unavailable in Inventory
+                if (rentedConsole) {
+                    rentMgr.rent(rentedConsole, customerID, date);
+                    // For customer history, we need console name and duration.
+                    // Simplified for now, assuming 2 hours as default for Customer history entry
+                    custMgr.updateHistory(customerID, rentedConsole->name, 2);
+                }
                 break;
-            case 3:
+            }
+            case 3: { // Return Console
+                cout << "Enter Console ID to return: ";
+                cin >> consoleID;
+                if (!inv.searchByID(consoleID)) {
+                    cout << "Console ID not found in inventory.\n";
+                    break;
+                }
+                if (!rentMgr.isConsoleRented(consoleID)) {
+                    cout << "Console " << consoleID << " is not currently rented.\n";
+                    break;
+                }
+                rentMgr.returnRental(consoleID);
+                inv.returnConsole(consoleID); // Mark as available in Inventory
                 break;
+            }
             case 4:
+                [cite_start]rentMgr.showAllRentals(); [cite: 166]
                 break;
-            case 5:
+            case 5: { // Customer Management Sub-menu
+                int custChoice;
+                do {
+                    clearScreen();
+                    cout << "\n===== Customer Management =====\n";
+                    cout << "1. Add New Customer\n";
+                    cout << "2. View Customer Details\n";
+                    cout << "3. View Customer Rental History\n";
+                    cout << "4. View All Customers\n";
+                    cout << "5. Back to Main Menu\n";
+                    cout << "Enter choice: ";
+                    cin >> custChoice;
+
+                    switch (custChoice) {
+                        case 1: {
+                            cout << "Enter new Customer ID: ";
+                            cin >> id;
+                            if (!isValidCustomerID(id)) {
+                                cout << "Invalid Customer ID format. Use alphanumeric characters only.\n";
+                                break;
+                            }
+                            cout << "Enter Customer Name: ";
+                            cin.ignore();
+                            getline(cin, name);
+                            custMgr.addCustomer(id, name);
+                            break;
+                        }
+                        case 2: {
+                            cout << "Enter Customer ID: ";
+                            cin >> id;
+                            custMgr.displayCustomerDetails(id);
+                            break;
+                        }
+                        case 3: {
+                            cout << "Enter Customer ID: ";
+                            cin >> id;
+                            custMgr.viewCustomerHistory(id);
+                            break;
+                        }
+                        case 4:
+                            custMgr.displayAllCustomers();
+                            break;
+                        case 5:
+                            cout << "Returning to Main Menu.\n";
+                            break;
+                        default:
+                            cout << "Invalid choice.\n";
+                    }
+                    cout << "Press Enter to continue...";
+                    cin.ignore(); // Consume leftover newline
+                    cin.get();    // Wait for user input
+                } while (custChoice != 5);
                 break;
-            case 6:
-                cout << "Exiting...\n";
+            }
+            case 6: { // System Reports and Files Sub-menu
+                int reportChoice;
+                do {
+                    clearScreen();
+                    cout << "\n===== System Reports & Files =====\n";
+                    cout << "1. Generate System Report\n";
+                    cout << "2. Show Raw File Contents\n";
+                    cout << "3. View Rental Statistics\n";
+                    cout << "4. Clear All Rental Records (Admin Only)\n";
+                    cout << "5. Back to Main Menu\n";
+                    cout << "Enter choice: ";
+                    cin >> reportChoice;
+
+                    switch (reportChoice) {
+                        case 1:
+                            fileMgr.generateReport();
+                            break;
+                        case 2:
+                            fileMgr.showAllFiles();
+                            break;
+                        case 3:
+                            rentMgr.showRentalStatistics();
+                            break;
+                        case 4:
+                            cout << "WARNING: This will clear ALL rental records. Are you sure? (y/n): ";
+                            char confirmClear;
+                            cin >> confirmClear;
+                            if (confirmClear == 'y' || confirmClear == 'Y') {
+                                rentMgr.clearAllRentals();
+                            } else {
+                                cout << "Clear operation cancelled.\n";
+                            }
+                            break;
+                        case 5:
+                            cout << "Returning to Main Menu.\n";
+                            break;
+                        default:
+                            cout << "Invalid choice.\n";
+                    }
+                    cout << "Press Enter to continue...";
+                    cin.ignore();
+                    cin.get();
+                } while (reportChoice != 5);
+                break;
+            }
+            case 7: // Changed from 6
+                [cite_start]cout << "Exiting...\n"; [cite: 168]
                 break;
             default:
-                cout << "Invalid choice.\n";
+                [cite_start]cout << "Invalid choice.\n"; [cite: 169]
         }
-    } while (choice != 6);
+        cout << "Press Enter to continue...";
+        cin.ignore(); // Consume leftover newline
+        cin.get();    // Wait for user input
+    } while (choice != 7); // Changed from 6
 }
 
 int main() {
     Inventory inv;
-    RentalManager rentMgr;
+    [cite_start]RentalManager rentMgr; [cite: 170]
     CustomerManager custMgr;
+    FileManager fileMgr; // Instantiate FileManager
 
     inv.loadFromFile();
     rentMgr.loadFromFile();
-    custMgr.loadFromFile(); // Optional
+    // custMgr.loadFromFile(); // Optional, as it's not fully implemented for persistence
 
-    mainMenu(inv, rentMgr, custMgr);
-    inv.saveToFile(); // Save updates
+    mainMenu(inv, rentMgr, custMgr, fileMgr); // Pass FileManager to mainMenu
+    [cite_start]inv.saveToFile(); [cite: 171]
+    rentMgr.saveToFile(); // Ensure rentals are saved on exit
 
     return 0;
 }
-
-///////////////////////
-// 👤 MEMBER 6: Validation & Utilities
-///////////////////////
-bool isValidConsoleID(string id, Inventory& inv); // ID exists & available
-bool isValidCustomerID(string id); // Simple format check
-bool isValidDate(string date); // Optional date format
-void clearScreen(); // Utility
