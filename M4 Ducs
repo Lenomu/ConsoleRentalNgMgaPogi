@@ -3,6 +3,58 @@
 ///////////////////////
 class FileManager {
 public:
-    void showAllFiles(); // Optional: Debug output of text files
-    void generateReport(); // Print summary: total consoles, rented, returned
+    // Function to show the contents of the inventory and rentals text files
+    void showAllFiles() {
+        cout << "\n--- Inventory File (inventory.txt) ---\n";
+        ifstream invFile("inventory.txt");
+        string line;
+        if (invFile.is_open()) {
+            while (getline(invFile, line)) {
+                cout << line << endl; // Display each line from inventory file
+            }
+            invFile.close();
+        } else {
+            cout << "Unable to open inventory.txt\n";
+        }
+
+        cout << "\n--- Rentals File (rentals.txt) ---\n";
+        ifstream rentalFile("rentals.txt");
+        if (rentalFile.is_open()) {
+            while (getline(rentalFile, line)) {
+                cout << line << endl; // Display each line from rentals file
+            }
+            rentalFile.close();
+        } else {
+            cout << "Unable to open rentals.txt\n";
+        }
+    }
+
+    // Function to generate a summary report based on inventory and rental data
+    void generateReport() {
+        ifstream invFile("inventory.txt");
+        ifstream rentalFile("rentals.txt");
+
+        int totalConsoles = 0;
+        int rentedConsoles = 0;
+
+        // Count total and available consoles from inventory
+        if (invFile.is_open()) {
+            string id, name, availableStr;
+            while (invFile >> id >> name >> availableStr) {
+                totalConsoles++;
+                if (availableStr == "0") {
+                    rentedConsoles++; // 0 means rented
+                }
+            }
+            invFile.close();
+        }
+
+        int returnedConsoles = totalConsoles - rentedConsoles;
+
+        // Display summary report
+        cout << "\n--- System Report ---\n";
+        cout << "Total Consoles      : " << totalConsoles << endl;
+        cout << "Currently Rented    : " << rentedConsoles << endl;
+        cout << "Currently Available : " << returnedConsoles << endl;
+    }
 };
