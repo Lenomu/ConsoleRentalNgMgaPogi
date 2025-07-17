@@ -1,0 +1,51 @@
+///////////////////////
+// 👤 MEMBER 5: UI & Menu Driver
+///////////////////////
+void mainMenu(Inventory& inv, RentalManager& rentMgr, CustomerManager& custMgr) {
+    int choice;
+    do {
+        cout << "\n===== Game Console Rental System =====\n";
+        cout << "1. View Available Consoles\n";
+        cout << "2. Rent Console\n";
+        cout << "3. Return Console\n";
+        cout << "4. View Current Rentals\n";
+        cout << "5. View Customer History\n";
+        cout << "6. Exit\n";
+        cout << "Enter choice: ";
+        cin >> choice;
+
+        // Use switch to call other functions here
+        switch (choice) {
+            case 1:
+                break;
+            case 2:
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+            case 6:
+                cout << "Exiting...\n";
+                break;
+            default:
+                cout << "Invalid choice.\n";
+        }
+    } while (choice != 6);
+}
+
+int main() {
+    Inventory inv;
+    RentalManager rentMgr;
+    CustomerManager custMgr;
+
+    inv.loadFromFile();
+    rentMgr.loadFromFile();
+    custMgr.loadFromFile(); // Optional
+
+    mainMenu(inv, rentMgr, custMgr);
+    inv.saveToFile(); // Save updates
+
+    return 0;
+}

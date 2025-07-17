@@ -1,0 +1,32 @@
+#include <iostream>
+
+///////////////////////
+// 👤 MEMBER 1: Inventory Manager
+///////////////////////
+struct Console {
+    string id;
+    string name;
+    bool available;
+};
+
+class Inventory {
+    vector<Console> consoles;
+
+public:
+    void loadFromFile(); // Load consoles from "inventory.txt"
+
+    void saveToFile();   // Save consoles to "inventory.txt"
+
+    void displayAll();   // Show all available consoles
+
+    Console* rentConsole(string id);  // Mark console as unavailable
+
+    void returnConsole(string id);    // Mark console as available
+
+    Console* searchByID(string id);   // Return pointer if found
+
+    vector<Console> searchByName(string keyword); // Return all matching
+
+
+    
+};

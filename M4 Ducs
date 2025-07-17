@@ -1,0 +1,8 @@
+///////////////////////
+// 👤 MEMBER 4: File & Report Manager
+///////////////////////
+class FileManager {
+public:
+    void showAllFiles(); // Optional: Debug output of text files
+    void generateReport(); // Print summary: total consoles, rented, returned
+};

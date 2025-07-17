@@ -1,0 +1,22 @@
+///////////////////////
+// 👤 MEMBER 3: Customer Manager
+///////////////////////
+class Customer {
+public:
+    string id;
+    string name;
+    list<string> rentalHistory;
+
+    void addRental(string consoleID);
+};
+
+class CustomerManager {
+    map<string, Customer> customers;
+
+public:
+    void loadFromFile(); // Optional: Load from "customers.txt"
+    void addCustomer(string id, string name);
+    void updateHistory(string id, string consoleID);
+    void viewCustomerHistory(string id);
+    bool customerExists(string id);
+};

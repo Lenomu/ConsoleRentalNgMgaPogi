@@ -1,0 +1,7 @@
+///////////////////////
+// 👤 MEMBER 6: Validation & Utilities
+///////////////////////
+bool isValidConsoleID(string id, Inventory& inv); // ID exists & available
+bool isValidCustomerID(string id); // Simple format check
+bool isValidDate(string date); // Optional date format
+void clearScreen(); // Utility

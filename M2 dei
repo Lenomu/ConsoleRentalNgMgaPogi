@@ -1,0 +1,19 @@
+///////////////////////
+// 👤 MEMBER 2: Rental Manager
+///////////////////////
+struct Rental {
+    string customer;
+    string consoleID;
+    string date;
+};
+
+class RentalManager {
+    list<Rental> currentRentals;
+
+public:
+    void rent(Console* c, string customer, string date); // Add rental
+    void returnRental(string consoleID); // Remove rental
+    void loadFromFile();  // Load current rentals from "rentals.txt"
+    void showAllRentals(); // Display active rentals
+    bool isConsoleRented(string consoleID); // Check if already rented
+};

@@ -1,0 +1,141 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <list>
+#include <map>
+#include <string>
+using namespace std;
+
+///////////////////////
+// 👤 MEMBER 1: Inventory Manager
+///////////////////////
+struct Console {
+    string id;
+    string name;
+    bool available;
+};
+
+class Inventory {
+    vector<Console> consoles;
+
+public:
+    void loadFromFile(); // Load consoles from "inventory.txt"
+    void saveToFile();   // Save consoles to "inventory.txt"
+    void displayAll();   // Show all available consoles
+    Console* rentConsole(string id);  // Mark console as unavailable
+    void returnConsole(string id);    // Mark console as available
+    Console* searchByID(string id);   // Return pointer if found
+    vector<Console> searchByName(string keyword); // Return all matching
+};
+
+///////////////////////
+// 👤 MEMBER 2: Rental Manager
+///////////////////////
+struct Rental {
+    string customer;
+    string consoleID;
+    string date;
+};
+
+class RentalManager {
+    list<Rental> currentRentals;
+
+public:
+    void rent(Console* c, string customer, string date); // Add rental
+    void returnRental(string consoleID); // Remove rental
+    void loadFromFile();  // Load current rentals from "rentals.txt"
+    void showAllRentals(); // Display active rentals
+    bool isConsoleRented(string consoleID); // Check if already rented
+};
+
+///////////////////////
+// 👤 MEMBER 3: Customer Manager
+///////////////////////
+class Customer {
+public:
+    string id;
+    string name;
+    list<string> rentalHistory;
+
+    void addRental(string consoleID);
+};
+
+class CustomerManager {
+    map<string, Customer> customers;
+
+public:
+    void loadFromFile(); // Optional: Load from "customers.txt"
+    void addCustomer(string id, string name);
+    void updateHistory(string id, string consoleID);
+    void viewCustomerHistory(string id);
+    bool customerExists(string id);
+};
+
+///////////////////////
+// 👤 MEMBER 4: File & Report Manager
+///////////////////////
+class FileManager {
+public:
+    void showAllFiles(); // Optional: Debug output of text files
+    void generateReport(); // Print summary: total consoles, rented, returned
+};
+
+///////////////////////
+// 👤 MEMBER 5: UI & Menu Driver
+///////////////////////
+void mainMenu(Inventory& inv, RentalManager& rentMgr, CustomerManager& custMgr) {
+    int choice;
+    do {
+        cout << "\n===== Game Console Rental System =====\n";
+        cout << "1. View Available Consoles\n";
+        cout << "2. Rent Console\n";
+        cout << "3. Return Console\n";
+        cout << "4. View Current Rentals\n";
+        cout << "5. View Customer History\n";
+        cout << "6. Exit\n";
+        cout << "Enter choice: ";
+        cin >> choice;
+
+        // Use switch to call other functions here
+        switch (choice) {
+            case 1:
+                break;
+            case 2:
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+            case 6:
+                cout << "Exiting...\n";
+                break;
+            default:
+                cout << "Invalid choice.\n";
+        }
+    } while (choice != 6);
+}
+
+int main() {
+    Inventory inv;
+    RentalManager rentMgr;
+    CustomerManager custMgr;
+
+    inv.loadFromFile();
+    rentMgr.loadFromFile();
+    custMgr.loadFromFile(); // Optional
+
+    mainMenu(inv, rentMgr, custMgr);
+    inv.saveToFile(); // Save updates
+
+    return 0;
+}
+
+///////////////////////
+// 👤 MEMBER 6: Validation & Utilities
+///////////////////////
+bool isValidConsoleID(string id, Inventory& inv); // ID exists & available
+bool isValidCustomerID(string id); // Simple format check
+bool isValidDate(string date); // Optional date format
+void clearScreen(); // Utility
