@@ -1,19 +1,244 @@
-///////////////////////
-// 👤 MEMBER 2: Rental Manager
-///////////////////////
-struct Rental {
-    string customer;
-    string consoleID;
-    string date;
-};
-
 class RentalManager {
+private:
     list<Rental> currentRentals;
 
 public:
-    void rent(Console* c, string customer, string date); // Add rental
-    void returnRental(string consoleID); // Remove rental
-    void loadFromFile();  // Load current rentals from "rentals.txt"
-    void showAllRentals(); // Display active rentals
-    bool isConsoleRented(string consoleID); // Check if already rented
+    // Constructor
+    RentalManager() {
+        // Initialize empty rental list
+    }
+
+    // Add a new rental record
+    void rent(Console* c, string customer, string date) {
+        // Check if console pointer is valid
+        if (c == nullptr) {
+            cout << "Error: Invalid console selected for rental.\n";
+            return;
+        }
+        
+        // Check if console is already rented
+        if (isConsoleRented(c->id)) {
+            cout << "Error: Console " << c->id << " is already rented.\n";
+            return;
+        }
+        
+        // Create new rental record
+        Rental newRental;
+        newRental.customer = customer;
+        newRental.consoleID = c->id;
+        newRental.date = date;
+        
+        // Add to current rentals list
+        currentRentals.push_back(newRental);
+        
+        // Mark console as unavailable
+        c->available = false;
+        
+        cout << "Successfully rented console " << c->id << " (" << c->name << ") to " << customer << " on " << date << ".\n";
+        
+        // Save updated rentals to file
+        saveToFile();
+    }
+
+    // Remove a rental record when console is returned
+    void returnRental(string consoleID) {
+        // Search for the rental record using iterator
+        auto it = currentRentals.begin();
+        bool found = false;
+        
+        while (it != currentRentals.end()) {
+            if (it->consoleID == consoleID) {
+                cout << "Console " << consoleID << " returned by " << it->customer << ".\n";
+                it = currentRentals.erase(it); // Remove from list and get next iterator
+                found = true;
+                break;
+            } else {
+                ++it;
+            }
+        }
+        
+        if (!found) {
+            cout << "Error: No rental record found for console " << consoleID << ".\n";
+        } else {
+            // Save updated rentals to file
+            saveToFile();
+        }
+    }
+
+    // Load current rentals from file
+    void loadFromFile() {
+        ifstream file("rentals.txt");
+        
+        if (!file.is_open()) {
+            cout << "Warning: Could not open rentals.txt. Starting with empty rental list.\n";
+            return;
+        }
+        
+        currentRentals.clear(); // Clear existing rentals
+        
+        string customer, consoleID, date;
+        
+        // Read rental records line by line
+        while (file >> customer >> consoleID >> date) {
+            Rental rental;
+            rental.customer = customer;
+            rental.consoleID = consoleID;
+            rental.date = date;
+            
+            currentRentals.push_back(rental);
+        }
+        
+        file.close();
+        cout << "Loaded " << currentRentals.size() << " rental records from file.\n";
+    }
+
+    // Save current rentals to file
+    void saveToFile() {
+        ofstream file("rentals.txt");
+        
+        if (!file.is_open()) {
+            cout << "Error: Could not save rentals to file.\n";
+            return;
+        }
+        
+        // Write each rental record to file
+        for (const auto& rental : currentRentals) {
+            file << rental.customer << " " << rental.consoleID << " " << rental.date << "\n";
+        }
+        
+        file.close();
+    }
+
+    // Display all active rentals
+    void showAllRentals() {
+        if (currentRentals.empty()) {
+            cout << "\n=== No Active Rentals ===\n";
+            return;
+        }
+        
+        cout << "\n=== Current Active Rentals ===\n";
+        cout << "Customer\t\tConsole ID\tRental Date\n";
+        cout << "----------------------------------------\n";
+        
+        // Use range-based for loop to display all rentals
+        for (const auto& rental : currentRentals) {
+            cout << rental.customer << "\t\t" << rental.consoleID << "\t\t" << rental.date << "\n";
+        }
+        
+        cout << "\nTotal active rentals: " << currentRentals.size() << "\n";
+    }
+
+    // Check if a console is currently rented
+    bool isConsoleRented(string consoleID) {
+        // Use find_if algorithm to search for console ID
+        auto it = find_if(currentRentals.begin(), currentRentals.end(),
+            [consoleID](const Rental& rental) {
+                return rental.consoleID == consoleID;
+            });
+        
+        return it != currentRentals.end();
+    }
+
+    // Get rental information for a specific console
+    Rental* getRentalInfo(string consoleID) {
+        // Search for rental record and return pointer if found
+        for (auto& rental : currentRentals) {
+            if (rental.consoleID == consoleID) {
+                return &rental;
+            }
+        }
+        return nullptr; // Not found
+    }
+
+    // Get all rentals for a specific customer
+    list<Rental> getCustomerRentals(string customer) {
+        list<Rental> customerRentals;
+        
+        // Filter rentals by customer name
+        for (const auto& rental : currentRentals) {
+            if (rental.customer == customer) {
+                customerRentals.push_back(rental);
+            }
+        }
+        
+        return customerRentals;
+    }
+
+    // Get total number of active rentals
+    int getTotalRentals() {
+        return currentRentals.size();
+    }
+
+    // Check if customer has any active rentals
+    bool hasActiveRentals(string customer) {
+        auto it = find_if(currentRentals.begin(), currentRentals.end(),
+            [customer](const Rental& rental) {
+                return rental.customer == customer;
+            });
+        
+        return it != currentRentals.end();
+    }
+
+    // Display rental statistics
+    void showRentalStatistics() {
+        cout << "\n=== Rental Statistics ===\n";
+        cout << "Total active rentals: " << currentRentals.size() << "\n";
+        
+        if (!currentRentals.empty()) {
+            // Count unique customers
+            list<string> uniqueCustomers;
+            for (const auto& rental : currentRentals) {
+                bool found = false;
+                for (const auto& customer : uniqueCustomers) {
+                    if (customer == rental.customer) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    uniqueCustomers.push_back(rental.customer);
+                }
+            }
+            
+            cout << "Unique customers with active rentals: " << uniqueCustomers.size() << "\n";
+        }
+    }
+
+    // Clear all rental records (for testing/admin purposes)
+    void clearAllRentals() {
+        currentRentals.clear();
+        saveToFile();
+        cout << "All rental records cleared.\n";
+    }
 };
+
+// Additional utility functions for Rental Manager
+
+// Function to validate rental input
+bool validateRentalInput(string customer, string consoleID, string date) {
+    // Check if customer name is not empty
+    if (customer.empty()) {
+        cout << "Error: Customer name cannot be empty.\n";
+        return false;
+    }
+    
+    // Check if console ID is not empty
+    if (consoleID.empty()) {
+        cout << "Error: Console ID cannot be empty.\n";
+        return false;
+    }
+    
+    // Check if date is not empty
+    if (date.empty()) {
+        cout << "Error: Date cannot be empty.\n";
+        return false;
+    }
+    
+    return true;
+}
+
+// Function to format rental date (simple implementation)
+string getCurrentDate() {
+    // Simple date format - in real implementation, use proper date/time library
+    return "2024-01-15"; // Placeholder - replace with actual date logic
+}
