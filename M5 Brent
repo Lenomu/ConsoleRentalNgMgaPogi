@@ -1,37 +1,118 @@
 ///////////////////////
 // 👤 MEMBER 5: UI & Menu Driver
 ///////////////////////
+
 void mainMenu(Inventory& inv, RentalManager& rentMgr, CustomerManager& custMgr) {
     int choice;
+    string id, name, date, customerID, consoleID;
+    Console* rentedConsole = nullptr;
+
     do {
-        cout << "\n===== Game Console Rental System =====\n";
-        cout << "1. View Available Consoles\n";
-        cout << "2. Rent Console\n";
-        cout << "3. Return Console\n";
-        cout << "4. View Current Rentals\n";
-        cout << "5. View Customer History\n";
-        cout << "6. Exit\n";
+        cout << "\n+==========================================+\n";
+        cout << "|        Game Console Rental System        |\n";
+        cout << "+------------------------------------------+\n";
+        cout << "| 1. View Available Consoles               |\n";
+        cout << "| 2. Rent Console                          |\n";
+        cout << "| 3. Return Console                        |\n";
+        cout << "| 4. View Current Rentals                  |\n";
+        cout << "| 5. View Customer History                 |\n";
+        cout << "| 6. Exit                                  |\n";
+        cout << "+==========================================+\n";
         cout << "Enter choice: ";
         cin >> choice;
 
-        // Use switch to call other functions here
         switch (choice) {
             case 1:
+                inv.displayAll();
                 break;
-            case 2:
+
+            case 2: {
+                cout << "Enter Customer ID: ";
+                cin >> customerID;
+
+                if (!isValidCustomerID(customerID)) {
+                    cout << "Invalid Customer ID format.\n";
+                    break;
+                }
+
+                if (!custMgr.customerExists(customerID)) {
+                    cout << "Customer not found. Enter name to register: ";
+                    cin.ignore();
+                    getline(cin, name);
+                    custMgr.addCustomer(customerID, name);
+                } else {
+                    cout << "Enter Customer Name (for verification): ";
+                    cin.ignore();
+                    getline(cin, name);
+                }
+
+                cout << "Enter Console ID: ";
+                cin >> consoleID;
+                if (!isValidConsoleID(consoleID, inv)) {
+                    cout << "Invalid or unavailable Console ID.\n";
+                    break;
+                }
+
+                if (rentMgr.isConsoleRented(consoleID)) {
+                    cout << "Console is already rented.\n";
+                    break;
+                }
+                cout << "Enter Rental Date (YYYY-MM-DD): ";
+                cin >> date;
+                if (!isValidDate(date)) {
+                    cout << "Invalid date format.\n";
+                    break;
+                }
+                rentedConsole = inv.rentConsole(consoleID);
+                if (rentedConsole) {
+                    rentMgr.rent(rentedConsole, customerID, date);
+                    custMgr.updateHistory(customerID, rentedConsole->name, 2);
+                }
                 break;
-            case 3:
+            }
+            case 3: {
+                cout << "Enter Console ID to return: ";
+                cin >> consoleID;
+
+                if (!inv.searchByID(consoleID)) {
+                    cout << "Console not found in inventory.\n";
+                    break;
+                }
+
+                if (!rentMgr.isConsoleRented(consoleID)) {
+                    cout << "Console is not currently rented.\n";
+                    break;
+                }
+                rentMgr.returnRental(consoleID);
+                inv.returnConsole(consoleID);
                 break;
+            }
+
             case 4:
+                rentMgr.showAllRentals();
                 break;
-            case 5:
+
+            case 5: {
+                cout << "Enter Customer ID: ";
+                cin >> customerID;
+
+                if (!custMgr.customerExists(customerID)) {
+                    cout << "Customer not found.\n";
+                    break;
+                }
+                custMgr.viewCustomerHistory(customerID);
                 break;
+            }
             case 6:
                 cout << "Exiting...\n";
                 break;
+
             default:
                 cout << "Invalid choice.\n";
         }
+        cout << "Press Enter to continue...";
+        cin.ignore();
+        cin.get();
     } while (choice != 6);
 }
 
@@ -43,9 +124,9 @@ int main() {
     inv.loadFromFile();
     rentMgr.loadFromFile();
     custMgr.loadFromFile(); // Optional
-
     mainMenu(inv, rentMgr, custMgr);
-    inv.saveToFile(); // Save updates
+    inv.saveToFile();
+    rentMgr.saveToFile();
 
     return 0;
 }
